@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishDetect| Real-Time Phishing & Threat Analyzer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            950: '#050811',
+                            900: '#0b1120',
+                            800: '#111827',
+                            700: '#1e293b',
+                            cyan: '#06b6d4',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            crimson: '#ef4444'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom animations & cyber grid background */
+        body {
+            background-color: #050811;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.06) 0%, transparent 40%),
+                linear-gradient(to right, rgba(30, 41, 59, 0.25) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(30, 41, 59, 0.25) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        /* Smooth Gauge Progress Transition */
+        .gauge-circle {
+            transition: stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.5s ease;
+        }
+
+        /* Scanning Beam Animation */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(300%); opacity: 0; }
+        }
+        .animate-scan {
+            animation: scanline 1.2s ease-in-out infinite;
+        }
+
+        /* Fade Slide In */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-result {
+            animation: fadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b1120;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="text-slate-200 font-sans antialiased min-h-screen flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+
+    <!-- Top Navigation & Stats Header -->
+    <header class="sticky top-0 z-30 backdrop-blur-xl bg-cyber-950/80 border-b border-slate-800/80">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <!-- Brand Logo -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-cyan-400"></i>
+                        <span class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-xl font-extrabold tracking-tight text-white">PhishDetect <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">AI</span></h1>
+                            <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">v2.4 Engine</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Real-Time Heuristic Threat & Phishing Analyzer</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Telemetry Stats Bar -->
+            <div class="grid grid-cols-3 gap-2 sm:gap-3 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800">
+                <div class="px-3 py-1.5 rounded-lg bg-slate-950/60 flex items-center gap-2.5">
+                    <div class="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 hidden sm:block">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Total Scans</div>
+                        <div id="stat-total" class="text-sm sm:text-base font-bold font-mono text-white">0</div>
+                    </div>
+                </div>
+
+                <div class="px-3 py-1.5 rounded-lg bg-slate-950/60 flex items-center gap-2.5">
+                    <div class="p-1.5 rounded-md bg-rose-500/10 text-rose-400 hidden sm:block">
+                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Threats Found</div>
+                        <div id="stat-threats" class="text-sm sm:text-base font-bold font-mono text-rose-400">0</div>
+                    </div>
+                </div>
+
+                <div class="px-3 py-1.5 rounded-lg bg-slate-950/60 flex items-center gap-2.5">
+                    <div class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 hidden sm:block">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Safe Verified</div>
+                        <div id="stat-safe" class="text-sm sm:text-base font-bold font-mono text-emerald-400">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+
+        <!-- Notification Banner (Replaces alert()) -->
+        <div id="toast-banner" class="hidden fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 border border-cyan-500/40 shadow-2xl text-sm text-slate-100 transition-all duration-300">
+            <i data-lucide="info" class="w-4 h-4 text-cyan-400 shrink-0"></i>
+            <span id="toast-message">Notification message</span>
+        </div>
+
+        <!-- Dual Analyzer Input Card -->
+        <section class="relative rounded-2xl bg-slate-900/75 backdrop-blur-md border border-slate-800 shadow-2xl overflow-hidden">
+            <!-- Scanning Overlay Effect -->
+            <div id="scan-overlay" class="hidden absolute inset-0 z-20 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                <div class="relative w-16 h-16 flex items-center justify-center rounded-2xl bg-cyan-500/10 border border-cyan-500/40 mb-3 overflow-hidden">
+                    <i data-lucide="scan-line" class="w-8 h-8 text-cyan-400 animate-pulse"></i>
+                    <div class="absolute inset-x-0 h-1 bg-cyan-400 shadow-[0_0_12px_#06b6d4] animate-scan"></div>
+                </div>
+                <p class="text-sm font-mono font-semibold text-cyan-300 tracking-wide">RUNNING HEURISTIC ANALYSIS...</p>
+                <p class="text-xs text-slate-400 mt-1">Inspecting lexical tokens, domain entropy & threat signatures</p>
+            </div>
+
+            <!-- Tab Switcher Header -->
+            <div class="flex border-b border-slate-800 bg-slate-950/50 p-1.5 gap-1.5">
+                <button id="tab-btn-url" onclick="switchTab('url')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all bg-gradient-to-r from-cyan-500/20 to-cyan-500/10 text-cyan-300 border border-cyan-500/40 shadow-sm">
+                    <i data-lucide="link" class="w-4 h-4"></i>
+                    <span>URL Scanner</span>
+                </button>
+                <button id="tab-btn-text" onclick="switchTab('text')" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent">
+                    <i data-lucide="mail-warning" class="w-4 h-4"></i>
+                    <span>Email / SMS Analyzer</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: URL SCANNER -->
+            <div id="panel-url" class="p-5 sm:p-6 space-y-5">
+                <div>
+                    <label for="url-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                        Target Website URL or Suspicious Link
+                    </label>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <div class="relative flex-1">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                <i data-lucide="globe" class="w-5 h-5 text-slate-500"></i>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="url-input" 
+                                placeholder="e.g., http://paypa1-security-update.com/login"
+                                class="w-full pl-11 pr-10 py-3.5 rounded-xl bg-slate-950 border border-slate-700/80 text-slate-100 placeholder-slate-500 font-mono text-sm focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                                onkeydown="if(event.key === 'Enter') runUrlScan()"
+                            >
+                            <button onclick="clearInput('url')" title="Clear input" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300">
+                                <i data-lucide="x-circle" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <button onclick="runUrlScan()" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer">
+                            <i data-lucide="radar" class="w-4 h-4"></i>
+                            <span>Analyze URL</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sample URLs Quick Pills -->
+                <div class="pt-1">
+                    <div class="text-xs font-medium text-slate-400 mb-2.5 flex items-center gap-1.5">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        <span>Try One-Click Sample URLs:</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="loadSampleUrl('https://www.google.com')" class="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs text-emerald-300 transition-all cursor-pointer">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span class="font-medium">Safe:</span>
+                            <span class="font-mono text-emerald-200/80 truncate max-w-[180px] sm:max-w-none">https://www.google.com</span>
+                        </button>
+                        <button onclick="loadSampleUrl('http://paypa1-security-update.com/login')" class="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs text-amber-300 transition-all cursor-pointer">
+                            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                            <span class="font-medium">Lookalike:</span>
+                            <span class="font-mono text-amber-200/80 truncate max-w-[180px] sm:max-w-none">paypa1-security-update.com</span>
+                        </button>
+                        <button onclick="loadSampleUrl('http://192.168.1.45/bank-verify-account.php?token=9921')" class="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-xs text-rose-300 transition-all cursor-pointer">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span class="font-medium">High Risk IP:</span>
+                            <span class="font-mono text-rose-200/80 truncate max-w-[180px] sm:max-w-none">192.168.1.45/bank-verify...</span>
+                        </button>
+                        <button onclick="loadSampleUrl('https://amaz0n-prime-billing.support-verify-now.xyz/auth/ssn')" class="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-xs text-rose-300 transition-all cursor-pointer">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span class="font-medium">Suspicious TLD:</span>
+                            <span class="font-mono text-rose-200/80 truncate max-w-[180px] sm:max-w-none">amaz0n-prime...xyz</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: EMAIL / SMS ANALYZER -->
+            <div id="panel-text" class="hidden p-5 sm:p-6 space-y-5">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label for="text-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                            Paste Suspicious Email Body or SMS Message
+                        </label>
+                        <button onclick="clearInput('text')" class="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
+                            <i data-lucide="eraser" class="w-3.5 h-3.5"></i> Clear
+                        </button>
+                    </div>
+                    <textarea 
+                        id="text-input" 
+                        rows="4" 
+                        placeholder="Paste email content, SMS alert, or message text here to inspect for social engineering patterns, urgency triggers, credential harvesting, and embedded malicious links..."
+                        class="w-full p-4 rounded-xl bg-slate-950 border border-slate-700/80 text-slate-100 placeholder-slate-500 text-sm leading-relaxed focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                    ></textarea>
+                </div>
+
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <!-- Sample Messages Quick Pills -->
+                    <div>
+                        <div class="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1.5">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i>
+                            <span>Try Sample Messages:</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="loadSampleText('kyc')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-xs text-rose-300 transition-all cursor-pointer">
+                                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                <span>Bank KYC Scam</span>
+                            </button>
+                            <button onclick="loadSampleText('lottery')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs text-amber-300 transition-all cursor-pointer">
+                                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                                <span>Prize / Lottery Scam</span>
+                            </button>
+                            <button onclick="loadSampleText('normal')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs text-emerald-300 transition-all cursor-pointer">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                <span>Normal Colleague Email</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button onclick="runTextScan()" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer">
+                        <i data-lucide="file-search" class="w-4 h-4"></i>
+                        <span>Analyze Message</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detailed Results Panel (Hidden initially until first scan, or populated on load) -->
+        <section id="results-section" class="hidden animate-result">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Column: Risk Score Gauge & Recommendation -->
+                <div class="lg:col-span-5 flex flex-col gap-6">
+                    <!-- Score Meter Card -->
+                    <div id="score-card" class="rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-800 p-6 flex flex-col items-center text-center shadow-xl relative overflow-hidden">
+                        <div class="w-full flex items-center justify-between mb-2">
+                            <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Threat Assessment</span>
+                            <span id="result-type-badge" class="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">URL SCAN</span>
+                        </div>
+
+                        <!-- SVG Circular Risk Gauge -->
+                        <div class="relative w-48 h-48 my-3 flex items-center justify-center">
+                            <svg class="w-full h-full -rotate-90 transform" viewBox="0 0 160 160">
+                                <!-- Background Track -->
+                                <circle cx="80" cy="80" r="66" stroke="currentColor" stroke-width="12" fill="transparent" class="text-slate-800" />
+                                <!-- Animated Progress Ring -->
+                                <circle id="gauge-ring" cx="80" cy="80" r="66" stroke="#10b981" stroke-width="12" stroke-linecap="round" fill="transparent"
+                                    stroke-dasharray="414.69" stroke-dashoffset="414.69" class="gauge-circle" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="risk-score-value" class="text-4xl font-extrabold font-mono text-white">0%</span>
+                                <span class="text-[11px] uppercase tracking-widest text-slate-400 font-semibold mt-0.5">Risk Score</span>
+                            </div>
+                        </div>
+
+                        <!-- Status Verdict Pill -->
+                        <div id="verdict-badge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold tracking-wide uppercase border mb-3">
+                            <i id="verdict-icon" data-lucide="shield-check" class="w-4 h-4"></i>
+                            <span id="verdict-text">SAFE</span>
+                        </div>
+
+                        <!-- Analyzed Target Preview -->
+                        <div class="w-full mt-2 p-2.5 rounded-xl bg-slate-950/90 border border-slate-800/90 text-left">
+                            <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-0.5">Inspected Payload</div>
+                            <p id="inspected-target" class="text-xs font-mono text-slate-300 truncate">https://www.google.com</p>
+                        </div>
+                    </div>
+
+                    <!-- Actionable Security Recommendation Box -->
+                    <div id="recommendation-box" class="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 shadow-lg">
+                        <div class="flex items-start gap-3.5">
+                            <div id="rec-icon-wrap" class="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0 mt-0.5">
+                                <i id="rec-icon" data-lucide="lightbulb" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white mb-1">Security Recommendation</h3>
+                                <p id="recommendation-text" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                                    No immediate threats detected. Always verify the sender before entering sensitive credentials.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Heuristic Breakdown Checklist -->
+                <div class="lg:col-span-7 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-800 p-6 shadow-xl flex flex-col">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-800">
+                        <div>
+                            <h2 class="text-base font-bold text-white flex items-center gap-2">
+                                <i data-lucide="list-checks" class="w-5 h-5 text-cyan-400"></i>
+                                <span>Heuristic Inspection Breakdown</span>
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Detailed rule-by-rule analysis of security indicators</p>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs font-mono">
+                            <span id="flags-count-badge" class="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">0 Flags</span>
+                            <span id="passed-count-badge" class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">0 Passed</span>
+                        </div>
+                    </div>
+
+                    <!-- Checklist Items Container -->
+                    <div id="checklist-container" class="mt-4 space-y-3 flex-1 overflow-y-auto max-h-[430px] pr-1">
+                        <!-- Dynamically populated items -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Recent Scan History Log -->
+        <section class="rounded-2xl bg-slate-900/70 backdrop-blur-md border border-slate-800 p-5 sm:p-6 shadow-xl">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-lg bg-slate-800 text-cyan-400">
+                        <i data-lucide="history" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm sm:text-base font-bold text-white">Recent Scan History</h2>
+                        <p class="text-xs text-slate-400">Session audit log of analyzed URLs and messages</p>
+                    </div>
+                </div>
+                <button onclick="clearHistory()" id="clear-history-btn" class="hidden px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>Clear History</span>
+                </button>
+            </div>
+
+            <!-- Empty State -->
+            <div id="history-empty" class="py-8 text-center border border-dashed border-slate-800 rounded-xl bg-slate-950/40">
+                <i data-lucide="shield" class="w-8 h-8 text-slate-600 mx-auto mb-2"></i>
+                <p class="text-sm text-slate-400 font-medium">No scans recorded yet</p>
+                <p class="text-xs text-slate-500 mt-0.5">Run a URL or Message scan above to see real-time telemetry here.</p>
+            </div>
+
+            <!-- History Table / List -->
+            <div id="history-list" class="hidden divide-y divide-slate-800/80 border border-slate-800 rounded-xl bg-slate-950/60 overflow-hidden">
+                <!-- Populated via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-cyber-950/90 py-4 px-4 text-center text-xs text-slate-500">
+        <p>PhishDetect AI Demo &bull; Client-Side Heuristic Threat Analysis Engine &bull; Built for Cybersecurity Education & Testing</p>
+    </footer>
+
+    <!-- Application Logic -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Application State
+        let stats = {
+            total: 0,
+            threats: 0,
+            safe: 0
+        };
+        let scanHistory = [];
+
+        // Sample Messages Dataset
+        const sampleMessages = {
+            kyc: "URGENT ALERT: Dear Valued Customer, your bank account has been temporarily suspended due to incomplete KYC verification. You must update your PAN, password, and OTP within 24 hours to avoid permanent account closure. Verify immediately at: http://192.168.1.45/bank-verify-account.php?token=9921",
+            lottery: "CONGRATULATIONS!! You have won $2,500,000.00 in the International Mega Lottery Promo! To claim your free cash prize, reply immediately with your full name, SSN, and credit card details for processing fees, or click http://claim-prize-winner-now.xyz/free-reward",
+            normal: "Hi team, just a quick reminder that our weekly sprint planning meeting is scheduled for tomorrow at 10:30 AM EST. I've updated the project roadmap document in our shared workspace. Let me know if you have any agenda items to add!"
+        };
+
+        // Toast Notification Helper (Replaces alert())
+        let toastTimeout;
+        function showToast(message) {
+            const toast = document.getElementById('toast-banner');
+            const msgEl = document.getElementById('toast-message');
+            msgEl.textContent = message;
+            toast.classList.remove('hidden');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3200);
+        }
+
+        // Switch between URL Scanner & Email/SMS Analyzer Tabs
+        function switchTab(tab) {
+            const urlBtn = document.getElementById('tab-btn-url');
+            const textBtn = document.getElementById('tab-btn-text');
+            const urlPanel = document.getElementById('panel-url');
+            const textPanel = document.getElementById('panel-text');
+
+            if (tab === 'url') {
+                urlBtn.className = "flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all bg-gradient-to-r from-cyan-500/20 to-cyan-500/10 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer";
+                textBtn.className = "flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent cursor-pointer";
+                urlPanel.classList.remove('hidden');
+                textPanel.classList.add('hidden');
+            } else {
+                textBtn.className = "flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all bg-gradient-to-r from-cyan-500/20 to-cyan-500/10 text-cyan-300 border border-cyan-500/40 shadow-sm cursor-pointer";
+                urlBtn.className = "flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent cursor-pointer";
+                textPanel.classList.remove('hidden');
+                urlPanel.classList.add('hidden');
+            }
+        }
+
+        // Load Sample URL & Automatically Trigger Scan
+        function loadSampleUrl(url) {
+            document.getElementById('url-input').value = url;
+            runUrlScan();
+        }
+
+        // Load Sample Message & Automatically Trigger Scan
+        function loadSampleText(type) {
+            document.getElementById('text-input').value = sampleMessages[type];
+            runTextScan();
+        }
+
+        // Clear Input Fields
+        function clearInput(type) {
+            if (type === 'url') {
+                document.getElementById('url-input').value = '';
+                document.getElementById('url-input').focus();
+            } else {
+                document.getElementById('text-input').value = '';
+                document.getElementById('text-input').focus();
+            }
+        }
+
+        // Simulate Scanning Animation Wrapper
+        function executeWithScanEffect(callback) {
+            const overlay = document.getElementById('scan-overlay');
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                callback();
+            }, 520);
+        }
+
+        // ==========================================
+        // HEURISTIC ENGINE 1: URL PHISHING DETECTOR
+        // ==========================================
+        function analyzeUrlHeuristics(rawInput) {
+            let score = 0;
+            const checks = [];
+            let normalizedUrl = rawInput.trim();
+
+            // Add protocol if omitted so URL parser can inspect it
+            const hasExplicitProtocol = /^https?:\/\//i.test(normalizedUrl);
+            const urlToParse = hasExplicitProtocol ? normalizedUrl : 'http://' + normalizedUrl;
+
+            let parsed;
+            try {
+                parsed = new URL(urlToParse);
+            } catch (e) {
+                return {
+                    score: 85,
+                    checks: [{
+                        passed: false,
+                        title: "Malformed URL Syntax",
+                        detail: "The input could not be parsed as a valid web address, a common obfuscation technique."
+                    }]
+                };
+            }
+
+            const hostname = parsed.hostname.toLowerCase();
+            const fullUrl = parsed.href.toLowerCase();
+
+            // 1. HTTPS vs HTTP Protocol Check
+            if (parsed.protocol === 'https:' && hasExplicitProtocol) {
+                checks.push({
+                    passed: true,
+                    title: "Encrypted HTTPS Connection",
+                    detail: "The URL uses HTTPS encryption to protect data in transit."
+                });
+            } else {
+                score += 20;
+                checks.push({
+                    passed: false,
+                    title: "Unencrypted HTTP Protocol",
+                    detail: "Connection lacks SSL/TLS (HTTPS). Attackers can intercept sensitive credentials in plain text."
+                });
+            }
+
+            // 2. Raw IP Address Hostname Check
+            const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (ipv4Regex.test(hostname)) {
+                score += 40;
+                checks.push({
+                    passed: false,
+                    title: "Raw IP Address Used as Domain",
+                    detail: `Legitimate organizations rarely host login portals on raw IP addresses (${hostname}). High phishing indicator.`
+                });
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "Standard Domain Name Structure",
+                    detail: "Host resolves via a standard domain name rather than a raw IP address."
+                });
+            }
+
+            // 3. Typosquatting / Brand Lookalike Characters (Homoglyphs & Leetspeak)
+            const lookalikePatterns = [
+                { regex: /paypa[1l]|p[a@]ypal/i, brand: "PayPal" },
+                { regex: /g00gle|googl[3e]/i, brand: "Google" },
+                { regex: /amaz0n|arnazon/i, brand: "Amazon" },
+                { regex: /micros0ft|rnicrosoft/i, brand: "Microsoft" },
+                { regex: /app1e|appl[3e]/i, brand: "Apple" },
+                { regex: /netf1ix|netfl[1i]x/i, brand: "Netflix" },
+                { regex: /faceb00k|faceb0ok/i, brand: "Facebook" }
+            ];
+            let foundLookalike = null;
+            for (const item of lookalikePatterns) {
+                // Ensure it's not the genuine official domain
+                if (item.regex.test(hostname) && !['www.paypal.com', 'paypal.com', 'www.google.com', 'google.com', 'www.amazon.com', 'amazon.com', 'www.microsoft.com', 'microsoft.com', 'www.apple.com', 'apple.com', 'www.netflix.com', 'netflix.com', 'www.facebook.com', 'facebook.com'].includes(hostname)) {
+                    foundLookalike = item.brand;
+                    break;
+                }
+            }
+            if (foundLookalike) {
+                score += 40;
+                checks.push({
+                    passed: false,
+                    title: `Brand Impersonation / Typosquatting (${foundLookalike})`,
+                    detail: `Domain "${hostname}" uses deceptive character substitution (e.g., '1' for 'l' or '0' for 'o') to mimic ${foundLookalike}.`
+                });
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "No Brand Typosquatting Detected",
+                    detail: "No deceptive character substitutions mimicking major brands were found in the hostname."
+                });
+            }
+
+            // 4. Suspicious / High-Risk Top-Level Domains (TLDs)
+            const riskyTlds = ['.xyz', '.top', '.tk', '.ml', '.ga', '.cf', '.gq', '.ru', '.cn', '.work', '.click', '.loan', '.zip'];
+            const matchedTld = riskyTlds.find(tld => hostname.endsWith(tld));
+            if (matchedTld) {
+                score += 25;
+                checks.push({
+                    passed: false,
+                    title: `High-Risk Top-Level Domain (${matchedTld})`,
+                    detail: `The "${matchedTld}" TLD is statistically abused in disposable phishing and spam campaigns.`
+                });
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "Reputable Top-Level Domain (TLD)",
+                    detail: "The domain extension is not flagged among high-abuse disposable TLDs."
+                });
+            }
+
+            // 5. Suspicious Phishing Keywords in URL
+            const riskyKeywords = ['login', 'verify', 'update', 'bank', 'free', 'urgent', 'secure', 'account', 'signin', 'wallet', 'ssn', 'billing', 'confirm', 'token', 'password'];
+            const matchedKeywords = riskyKeywords.filter(kw => fullUrl.includes(kw));
+            if (matchedKeywords.length >= 2) {
+                score += 25;
+                checks.push({
+                    passed: false,
+                    title: `Multiple Credential/Urgency Keywords (${matchedKeywords.length} found)`,
+                    detail: `Detected sensitive terms in URL path/query: ${matchedKeywords.map(k => `"${k}"`).join(', ')}.`
+                });
+            } else if (matchedKeywords.length === 1) {
+                score += 10;
+                checks.push({
+                    passed: false,
+                    title: `Sensitive Keyword in URL ("${matchedKeywords[0]}")`,
+                    detail: `URL contains "${matchedKeywords[0]}", which requires verifying domain authenticity before proceeding.`
+                });
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "Clean URL Path & Query Tokens",
+                    detail: "No high-pressure credential harvesting keywords detected in the URL string."
+                });
+            }
+
+            // 6. Excessive Subdomains & Hyphens
+            const dotCount = (hostname.match(/\./g) || []).length;
+            const hyphenCount = (hostname.match(/-/g) || []).length;
+            if (dotCount > 3 || hyphenCount >= 2) {
+                score += 20;
+                checks.push({
+                    passed: false,
+                    title: "Deceptive Subdomain / Hyphen Obfuscation",
+                    detail: `Hostname contains ${dotCount} dots and ${hyphenCount} hyphens, often used to hide the true root domain.`
+                });
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "Normal Domain Depth & Formatting",
+                    detail: "Subdomain depth and hyphen usage fall within normal conventions."
+                });
+            }
+
+            // 7. Excessive URL Length & '@' Symbol Obfuscation
+            if (fullUrl.includes('@') || normalizedUrl.length > 75) {
+                score += 15;
+                checks.push({
+                    passed: false,
+                    title: fullUrl.includes('@') ? "URL '@' Redirect Obfuscation" : "Abnormally Long URL String",
+                    detail: fullUrl.includes('@') 
+                        ? "The '@' symbol causes browsers to ignore everything before it and redirect to a hidden host."
+                        : `URL length is ${normalizedUrl.length} characters; long URLs often conceal malicious parameters.`
+                });
+            }
+
+            return {
+                score: Math.min(100, score),
+                checks
+            };
+        }
+
+        // ==========================================
+        // HEURISTIC ENGINE 2: EMAIL / SMS ANALYZER
+        // ==========================================
+        function analyzeTextHeuristics(text) {
+            let score = 0;
+            const checks = [];
+            const lowerText = text.toLowerCase();
+
+            // 1. Urgency & Coercion Triggers
+            const urgencyWords = ['immediately', '24 hours', '48 hours', 'suspended', 'urgent', 'act now', 'account closure', 'unauthorized', 'expires today', 'final notice', 'restricted', 'locked'];
+            const foundUrgency = urgencyWords.filter(w => lowerText.includes(w));
+            if (foundUrgency.length > 0) {
+                score += Math.min(35, foundUrgency.length * 15);
+                checks.push({
+                    passed: false,
+                    title: `Artificial Urgency / Fear Tactics (${foundUrgency.length} triggers)`,
+                    detail: `Phrases like ${foundUrgency.map(w => `"${w}"`).join(', ')} are engineered to induce panic and bypass critical thinking.`
+                });
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "No Coercive Urgency Language",
+                    detail: "Message tone does not contain high-pressure countdowns or account suspension threats."
+                });
+            }
+
+            // 2. Sensitive Financial / Credential Requests
+            const credentialWords = ['otp', 'password', 'credit card', 'ssn', 'social security', 'kyc', 'pan', 'pin', 'cvv', 'bank account', 'routing number', 'passcode', 'login details'];
+            const foundCreds = credentialWords.filter(w => lowerText.includes(w));
+            if (foundCreds.length > 0) {
+                score += Math.min(40, foundCreds.length * 18);
+                checks.push({
+                    passed: false,
+                    title: `Sensitive Credential / Financial Solicitation`,
+                    detail: `Requests or references restricted data: ${foundCreds.map(w => `"${w.toUpperCase()}"`).join(', ')}. Legitimate institutions never ask for these via email/SMS.`
+                });
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "No Credential or PII Harvesting",
+                    detail: "Message does not solicit passwords, OTPs, credit card numbers, or government IDs."
+                });
+            }
+
+            // 3. Generic / Impersonal Greetings
+            const genericGreetings = ['dear customer', 'dear valued customer', 'dear user', 'dear member', 'dear account holder', 'valued client'];
+            const foundGreeting = genericGreetings.find(g => lowerText.includes(g));
+            if (foundGreeting) {
+                score += 15;
+                checks.push({
+                    passed: false,
+                    title: `Generic Impersonal Greeting ("${foundGreeting}")`,
+                    detail: "Mass phishing campaigns use generic salutations instead of addressing you by your registered name."
+                });
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "Natural Salutation Structure",
+                    detail: "No mass-mailer generic customer greetings detected."
+                });
+            }
+
+            // 4. Too-Good-To-Be-True / Prize / Lottery Lures
+            const lureWords = ['congratulations', 'you have won', 'lottery', 'free cash', 'claim your prize', 'million', 'winner', 'gift card', 'inheritance'];
+            const foundLures = lureWords.filter(w => lowerText.includes(w));
+            if (foundLures.length > 0) {
+                score += 30;
+                checks.push({
+                    passed: false,
+                    title: "Financial Reward / Lottery Bait Detected",
+                    detail: `Contains classic advance-fee scam lures: ${foundLures.map(w => `"${w}"`).join(', ')}.`
+                });
+            }
+
+            // 5. Embedded URLs Inspection
+            const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+            const embeddedUrls = text.match(urlRegex) || [];
+            if (embeddedUrls.length > 0) {
+                let worstUrlScore = 0;
+                embeddedUrls.forEach(u => {
+                    const res = analyzeUrlHeuristics(u);
+                    if (res.score > worstUrlScore) worstUrlScore = res.score;
+                });
+
+                if (worstUrlScore >= 30) {
+                    score += Math.min(40, Math.round(worstUrlScore * 0.6));
+                    checks.push({
+                        passed: false,
+                        title: `Suspicious Embedded Link Detected (${embeddedUrls.length} URL${embeddedUrls.length > 1 ? 's' : ''})`,
+                        detail: `Embedded link "${embeddedUrls[0]}" failed heuristic safety checks (Risk: ${worstUrlScore}%).`
+                    });
+                } else {
+                    checks.push({
+                        passed: true,
+                        title: `Embedded Link Verified (${embeddedUrls.length} URL)`,
+                        detail: `Link "${embeddedUrls[0]}" passed basic structural safety checks.`
+                    });
+                }
+            } else {
+                checks.push({
+                    passed: true,
+                    title: "No Embedded External Links",
+                    detail: "Message contains no clickable web URLs."
+                });
+            }
+
+            return {
+                score: Math.min(100, score),
+                checks
+            };
+        }
+
+        // Trigger URL Scan
+        function runUrlScan() {
+            const input = document.getElementById('url-input').value.trim();
+            if (!input) {
+                showToast("Please enter a URL or choose a sample link first.");
+                return;
+            }
+
+            executeWithScanEffect(() => {
+                const analysis = analyzeUrlHeuristics(input);
+                renderResults('URL SCAN', input, analysis);
+            });
+        }
+
+        // Trigger Text / Email Scan
+        function runTextScan() {
+            const input = document.getElementById('text-input').value.trim();
+            if (!input) {
+                showToast("Please paste an email/SMS message or choose a sample first.");
+                return;
+            }
+
+            executeWithScanEffect(() => {
+                const analysis = analyzeTextHeuristics(input);
+                renderResults('MESSAGE SCAN', input, analysis);
+            });
+        }
+
+        // Render Analysis Results to UI
+        function renderResults(scanType, targetPayload, analysis) {
+            const { score, checks } = analysis;
+            const resultsSection = document.getElementById('results-section');
+            resultsSection.classList.remove('hidden');
+
+            // Re-trigger entrance animation
+            resultsSection.classList.remove('animate-result');
+            void resultsSection.offsetWidth;
+            resultsSection.classList.add('animate-result');
+
+            // Determine Classification Tier
+            let status = 'SAFE';
+            let colorHex = '#10b981'; // Emerald
+            let badgeClasses = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40';
+            let iconName = 'shield-check';
+            let recommendation = 'This target appears legitimate based on our heuristic checks. Always remain cautious and verify unexpected requests through official channels.';
+            let recIconClasses = 'p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0 mt-0.5';
+
+            if (score >= 60) {
+                status = 'PHISHING / HIGH RISK';
+                colorHex = '#ef4444'; // Crimson
+                badgeClasses = 'bg-rose-500/15 text-rose-400 border-rose-500/40 shadow-[0_0_15px_rgba(239,68,68,0.25)]';
+                iconName = 'shield-x';
+                recommendation = 'DO NOT CLICK links, download attachments, or share credentials! This exhibits strong hallmarks of a phishing attack. Block the sender and report it immediately.';
+                recIconClasses = 'p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0 mt-0.5';
+            } else if (score >= 25) {
+                status = 'SUSPICIOUS';
+                colorHex = '#f59e0b'; // Amber
+                badgeClasses = 'bg-amber-500/15 text-amber-400 border-amber-500/40';
+                iconName = 'alert-triangle';
+                recommendation = 'Proceed with extreme caution. Several red flags were detected. Independently verify the source by visiting the organization\'s official website directly via your browser.';
+                recIconClasses = 'p-2.5 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0 mt-0.5';
+            }
+
+            // Update Telemetry Stats
+            stats.total++;
+            if (score >= 25) {
+                stats.threats++;
+            } else {
+                stats.safe++;
+            }
+            updateStatsBar();
+
+            // Update Gauge Circle (Circumference = 2 * PI * 66 ≈ 414.69)
+            const circumference = 414.69;
+            const offset = circumference - (score / 100) * circumference;
+            const gaugeRing = document.getElementById('gauge-ring');
+            gaugeRing.style.stroke = colorHex;
+            gaugeRing.style.strokeDashoffset = offset;
+
+            // Animate Number Counter
+            animateScoreCounter(score, colorHex);
+
+            // Update Verdict Badge & Metadata
+            document.getElementById('result-type-badge').textContent = scanType;
+            const verdictBadge = document.getElementById('verdict-badge');
+            verdictBadge.className = `inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-wide uppercase border mb-3 ${badgeClasses}`;
+            verdictBadge.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4"></i><span>${status}</span>`;
+
+            document.getElementById('inspected-target').textContent = targetPayload;
+            document.getElementById('recommendation-text').textContent = recommendation;
+            document.getElementById('rec-icon-wrap').className = recIconClasses;
+
+            // Sort checks so failed flags appear at top
+            const sortedChecks = [...checks].sort((a, b) => Number(a.passed) - Number(b.passed));
+            const flagsCount = sortedChecks.filter(c => !c.passed).length;
+            const passedCount = sortedChecks.filter(c => c.passed).length;
+
+            document.getElementById('flags-count-badge').textContent = `${flagsCount} Flag${flagsCount === 1 ? '' : 's'}`;
+            document.getElementById('passed-count-badge').textContent = `${passedCount} Passed`;
+
+            // Populate Breakdown Checklist
+            const checklistEl = document.getElementById('checklist-container');
+            checklistEl.innerHTML = sortedChecks.map(item => {
+                if (item.passed) {
+                    return `
+                        <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90 flex items-start gap-3">
+                            <div class="p-1 rounded-full bg-emerald-500/15 text-emerald-400 mt-0.5 shrink-0">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-semibold text-slate-200">${escapeHtml(item.title)}</h4>
+                                <p class="text-xs text-slate-400 mt-0.5 leading-relaxed">${escapeHtml(item.detail)}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="p-3.5 rounded-xl bg-rose-950/20 border border-rose-500/30 flex items-start gap-3">
+                            <div class="p-1 rounded-full bg-rose-500/20 text-rose-400 mt-0.5 shrink-0">
+                                <i data-lucide="alert-octagon" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-semibold text-rose-300">${escapeHtml(item.title)}</h4>
+                                <p class="text-xs text-slate-300/90 mt-0.5 leading-relaxed">${escapeHtml(item.detail)}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            // Add Entry to Session History
+            addToHistory({
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                type: scanType === 'URL SCAN' ? 'URL' : 'MSG',
+                target: targetPayload,
+                score,
+                status
+            });
+
+            // Re-render newly injected Lucide icons
+            lucide.createIcons();
+
+            // Smooth scroll to results on mobile screens
+            if (window.innerWidth < 768) {
+                resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // Smooth Number Counter for Risk Percentage
+        function animateScoreCounter(targetScore, colorHex) {
+            const el = document.getElementById('risk-score-value');
+            el.style.color = colorHex;
+            let current = 0;
+            const duration = 650;
+            const stepTime = 20;
+            const steps = duration / stepTime;
+            const increment = targetScore / steps;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= targetScore) {
+                    current = targetScore;
+                    clearInterval(timer);
+                }
+                el.textContent = `${Math.round(current)}%`;
+            }, stepTime);
+        }
+
+        // Update Top Header Stats
+        function updateStatsBar() {
+            document.getElementById('stat-total').textContent = stats.total;
+            document.getElementById('stat-threats').textContent = stats.threats;
+            document.getElementById('stat-safe').textContent = stats.safe;
+        }
+
+        // Manage Scan History Log
+        function addToHistory(entry) {
+            scanHistory.unshift(entry);
+            if (scanHistory.length > 15) scanHistory.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const emptyEl = document.getElementById('history-empty');
+            const listEl = document.getElementById('history-list');
+            const clearBtn = document.getElementById('clear-history-btn');
+
+            if (scanHistory.length === 0) {
+                emptyEl.classList.remove('hidden');
+                listEl.classList.add('hidden');
+                clearBtn.classList.add('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            listEl.classList.remove('hidden');
+            clearBtn.classList.remove('hidden');
+
+            listEl.innerHTML = scanHistory.map(item => {
+                let pillStyle = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+                if (item.score >= 60) {
+                    pillStyle = 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+                } else if (item.score >= 25) {
+                    pillStyle = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+                }
+
+                return `
+                    <div class="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-900/80 transition-colors">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700 shrink-0">
+                                ${item.type}
+                            </span>
+                            <span class="text-xs font-mono text-slate-300 truncate">${escapeHtml(item.target)}</span>
+                        </div>
+                        <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                            <span class="text-[11px] font-mono text-slate-500">${item.time}</span>
+                            <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${pillStyle}">
+                                ${item.status} (${item.score}%)
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearHistory() {
+            scanHistory = [];
+            renderHistory();
+            showToast("Scan history cleared.");
+        }
+
+        // Prevent XSS when rendering user input into HTML
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
